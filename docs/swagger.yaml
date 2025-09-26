@@ -1,0 +1,348 @@
+basePath: /api
+definitions:
+  models.News:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      topic:
+        $ref: '#/definitions/models.Topic'
+      topic_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.Topic:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      news:
+        description: Relations
+        items:
+          $ref: '#/definitions/models.News'
+        type: array
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for managing news and topics
+  title: News and Topics Management API
+  version: "1.0"
+paths:
+  /news:
+    get:
+      consumes:
+      - application/json
+      description: Get list of news
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.News'
+            type: array
+      summary: List all news
+      tags:
+      - News
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Create a new news with title, content, and optional topic_id
+      parameters:
+      - description: News Title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: News Content
+        in: formData
+        name: content
+        required: true
+        type: string
+      - description: Topic ID
+        in: formData
+        name: topic_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.News'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new news
+      tags:
+      - News
+  /news/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove news from database
+      parameters:
+      - description: News ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete news by ID
+      tags:
+      - News
+    get:
+      consumes:
+      - application/json
+      description: Get detailed news data including topic
+      parameters:
+      - description: News ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.News'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get news by ID
+      tags:
+      - News
+    put:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Update a news by ID with title, content, and optional topic_id
+        (form input)
+      parameters:
+      - description: News ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: News Title
+        in: formData
+        name: title
+        type: string
+      - description: News Content
+        in: formData
+        name: content
+        type: string
+      - description: Topic ID
+        in: formData
+        name: topic_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.News'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update an existing news
+      tags:
+      - News
+  /topics:
+    get:
+      consumes:
+      - application/json
+      description: Get list of topics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Topic'
+            type: array
+      summary: List all topics
+      tags:
+      - Topics
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Create a new topic with name (form input)
+      parameters:
+      - description: Topic Name
+        in: formData
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Topic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new topic
+      tags:
+      - Topics
+  /topics/{id}:
+    delete:
+      description: Delete a topic by its ID
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a topic
+      tags:
+      - Topics
+    get:
+      consumes:
+      - application/json
+      description: Get detailed topic data
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Topic'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get topic by ID
+      tags:
+      - Topics
+    put:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Update a topic by ID with name (form input)
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Topic Name
+        in: formData
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Topic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update an existing topic
+      tags:
+      - Topics
+swagger: "2.0"

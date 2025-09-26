@@ -1,0 +1,13 @@
+FROM golang:1.24-alpine
+
+# install tools
+RUN apk add gcc musl-dev --no-cache git ca-certificates bash
+
+WORKDIR /app
+
+# copy mod files dulu untuk cache depedensi
+COPY go.mod go.sum ./
+RUN go mod download
+
+# default command
+CMD ["go", "run", "main.go"]
