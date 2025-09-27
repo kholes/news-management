@@ -12,7 +12,9 @@ import (
 	"github.com/kholes/news-management/internal/config"
 	"github.com/kholes/news-management/internal/database"
 	"github.com/kholes/news-management/internal/handlers"
+	"github.com/kholes/news-management/internal/models"
 	"github.com/kholes/news-management/internal/routes"
+	"github.com/kholes/news-management/internal/seed"
 )
 
 // @title News and Topics Management API
@@ -32,9 +34,11 @@ func main() {
 		log.Fatalf("failed connect database: %v", err)
 	}
 
-	// Seed data
-	database.SeedTopics(db)
-	database.SeedNews(db)
+	// Migrate
+	db.AutoMigrate(&models.News{}, &models.Topic{}, &models.NewsTopic{})
+
+	// Seed
+	seed.SeedAll(db)
 
 	newsHandler := handlers.NewNewsHandler(db)
 	topicHandler := handlers.NewTopicHandler(db)

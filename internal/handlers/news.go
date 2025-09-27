@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -33,67 +32,69 @@ func NewNewsHandler(db *gorm.DB) *NewsHandler {
 // @Failure 500 {object}  map[string]string
 // @Router /news [post]
 func (h *NewsHandler) CreateNews(c echo.Context) error {
-	title := c.FormValue("title")
-	content := c.FormValue("content")
-
-	if title == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "title is required"})
-	}
-	if content == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "content is required"})
+	var input struct {
+		Title    string `json:"title"`
+		Content  string `json:"content"`
+		Status   string `json:"status"`
+		TopicIDs []uint `json:"topic_ids"`
 	}
 
-	var topicID *uint
-	if topicIDStr := c.FormValue("topic_id"); topicIDStr != "" {
-		idUint, err := strconv.ParseUint(topicIDStr, 10, 64)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid topic_id"})
+	if err := c.Bind(&input); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+
+	var topics []models.Topic
+	if len(input.TopicIDs) > 0 {
+		if err := h.DB.Find(&topics, input.TopicIDs).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		}
-		id := uint(idUint)
-		topicID = &id
 	}
 
-	news := models.News{Title: title, Content: content, TopicID: topicID}
+	news := models.News{
+		Title:   input.Title,
+		Content: input.Content,
+		Status:  input.Status,
+		Topics:  topics,
+	}
+
 	if err := h.DB.Create(&news).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusCreated, news)
 }
 
-// ListNews godoc
-// @Summary List all news
-// @Description Get list of news
+// @Summary Get all news
+// @Description Get list of news articles with optional filters by status and topic
 // @Tags News
 // @Accept json
 // @Produce json
+// @Param status query string false "Filter by status (draft, published, deleted)"
+// @Param topic_id query int false "Filter by topic ID"
 // @Success 200 {array} models.News
+// @Failure 500 {object} map[string]string
 // @Router /news [get]
 func (h *NewsHandler) ListNews(c echo.Context) error {
+	status := c.QueryParam("status")    // optional filter
+	topicID := c.QueryParam("topic_id") // optional filter
+
 	var news []models.News
-	limit := 20
-	offset := 0
-	if q := c.QueryParam("limit"); q != "" {
-		if v, err := strconv.Atoi(q); err == nil {
-			limit = v
-		}
-	}
-	if q := c.QueryParam("offset"); q != "" {
-		if v, err := strconv.Atoi(q); err == nil {
-			offset = v
-		}
+	query := h.DB.Preload("Topics")
+
+	if status != "" {
+		query = query.Where("status = ?", status)
 	}
 
-	// optionally filter by topic
-	if q := c.QueryParam("topic_id"); q != "" {
-		if err := h.DB.Preload("Topic").Where("topic_id = ?", q).Limit(limit).Offset(offset).Find(&news).Error; err != nil {
-			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-		}
-		return c.JSON(http.StatusOK, news)
+	if topicID != "" {
+		query = query.Joins("JOIN news_topics nt ON nt.news_id = news.id").
+			Where("nt.topic_id = ?", topicID)
+		query = query.Preload("Topics", "id = ?", topicID)
+	} else {
+		query = query.Preload("Topics")
 	}
 
-	if err := h.DB.Preload("Topic").Limit(limit).Offset(offset).Find(&news).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	if err := query.Find(&news).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusOK, news)
@@ -112,14 +113,11 @@ func (h *NewsHandler) ListNews(c echo.Context) error {
 // @Router /news/{id} [get]
 func (h *NewsHandler) GetNews(c echo.Context) error {
 	id := c.Param("id")
-	var n models.News
-	if err := h.DB.Preload("Topic").First(&n, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(http.StatusNotFound, echo.Map{"error": "news not found"})
-		}
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	var news models.News
+	if err := h.DB.Preload("Topics").First(&news, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "News not found"})
 	}
-	return c.JSON(http.StatusOK, n)
+	return c.JSON(http.StatusOK, news)
 }
 
 // UpdateNews godoc
@@ -139,32 +137,38 @@ func (h *NewsHandler) GetNews(c echo.Context) error {
 // @Router /news/{id} [put]
 func (h *NewsHandler) UpdateNews(c echo.Context) error {
 	id := c.Param("id")
-
-	var news models.News
-	if err := h.DB.First(&news, id).Error; err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "news not found"})
+	var existing models.News
+	if err := h.DB.Preload("Topics").First(&existing, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "News not found"})
 	}
 
-	if title := c.FormValue("title"); title != "" {
-		news.Title = title
+	var input struct {
+		Title    string `json:"title"`
+		Content  string `json:"content"`
+		Status   string `json:"status"`
+		TopicIDs []uint `json:"topic_ids"`
 	}
-	if content := c.FormValue("content"); content != "" {
-		news.Content = content
+	if err := c.Bind(&input); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
-	if topicIDStr := c.FormValue("topic_id"); topicIDStr != "" {
-		idUint, err := strconv.ParseUint(topicIDStr, 10, 64)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid topic_id"})
+
+	existing.Title = input.Title
+	existing.Content = input.Content
+	existing.Status = input.Status
+
+	if len(input.TopicIDs) > 0 {
+		var topics []models.Topic
+		if err := h.DB.Find(&topics, input.TopicIDs).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		}
-		id := uint(idUint)
-		news.TopicID = &id
+		h.DB.Model(&existing).Association("Topics").Replace(&topics)
 	}
 
-	if err := h.DB.Save(&news).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if err := h.DB.Save(&existing).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, news)
+	return c.JSON(http.StatusOK, existing)
 }
 
 // DeleteNews godoc
@@ -179,8 +183,15 @@ func (h *NewsHandler) UpdateNews(c echo.Context) error {
 // @Router /news/{id} [delete]
 func (h *NewsHandler) DeleteNews(c echo.Context) error {
 	id := c.Param("id")
-	if err := h.DB.Delete(&models.News{}, id).Error; err != nil {
+	var news models.News
+	if err := h.DB.First(&news, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "News not found"})
+	}
+
+	news.Status = "deleted"
+	if err := h.DB.Save(&news).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
+
 	return c.NoContent(http.StatusNoContent)
 }

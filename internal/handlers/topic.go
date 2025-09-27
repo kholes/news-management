@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
-	"github.com/kholes/news-management/internal/database"
 	"github.com/kholes/news-management/internal/models"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -30,15 +28,22 @@ func NewTopicHandler(db *gorm.DB) *TopicHandler {
 // @Failure 400 {object}  map[string]string
 // @Failure 500 {object}  map[string]string
 // @Router /topics [post]
-func (h *TopicHandler) CreateTopic(c echo.Context) error { // use TopicHandler as dependency injection
-	name := c.FormValue("name")
-	if name == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
+func (h *TopicHandler) CreateTopic(c echo.Context) error {
+	type CreateTopicInput struct {
+		Name string `json:"name" binding:"required"`
+	}
+	var input CreateTopicInput
+	if err := c.Bind(&input); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
 
-	topic := models.Topic{Name: name}
+	if input.Name == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "name is required"})
+	}
+
+	topic := models.Topic{Name: input.Name}
 	if err := h.DB.Create(&topic).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusCreated, topic)
@@ -54,23 +59,9 @@ func (h *TopicHandler) CreateTopic(c echo.Context) error { // use TopicHandler a
 // @Router /topics [get]
 func (h *TopicHandler) ListTopics(c echo.Context) error {
 	var topics []models.Topic
-	limit := 20
-	offset := 0
-	if q := c.QueryParam("limit"); q != "" {
-		if v, err := strconv.Atoi(q); err == nil {
-			limit = v
-		}
+	if err := h.DB.Preload("News").Find(&topics).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	if q := c.QueryParam("offset"); q != "" {
-		if v, err := strconv.Atoi(q); err == nil {
-			offset = v
-		}
-	}
-
-	if err := h.DB.Limit(limit).Offset(offset).Find(&topics).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-	}
-
 	return c.JSON(http.StatusOK, topics)
 }
 
@@ -87,7 +78,7 @@ func (h *TopicHandler) ListTopics(c echo.Context) error {
 func (h *TopicHandler) GetTopic(c echo.Context) error {
 	id := c.Param("id")
 	var topic models.Topic
-	if err := h.DB.First(&topic, id).Error; err != nil {
+	if err := h.DB.Preload("News").First(&topic, id).Error; err != nil {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "topic not found"})
 	}
 
@@ -115,12 +106,19 @@ func (h *TopicHandler) UpdateTopic(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "topic not found"})
 	}
 
-	name := c.FormValue("name")
-	if name == "" {
+	var input struct {
+		Name string `json:"name"`
+	}
+
+	if err := c.Bind(&input); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	if input.Name == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
 	}
 
-	topic.Name = name
+	topic.Name = input.Name
 	if err := h.DB.Save(&topic).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -136,9 +134,9 @@ func (h *TopicHandler) UpdateTopic(c echo.Context) error {
 // @Success 204 "No Content"
 // @Failure 404 {object}  map[string]string
 // @Router /topics/{id} [delete]
-func DeleteTopic(c echo.Context) error {
+func (h *TopicHandler) DeleteTopic(c echo.Context) error {
 	id := c.Param("id")
-	if err := database.DB.Delete(&models.Topic{}, id).Error; err != nil {
+	if err := h.DB.Delete(&models.Topic{}, id).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 	return c.NoContent(http.StatusNoContent)

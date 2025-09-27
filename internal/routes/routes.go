@@ -18,7 +18,7 @@ func Register(e *echo.Echo, newsHandler *handlers.NewsHandler, topicHandler *han
 	e.GET("/api/topics", topicHandler.ListTopics)
 	e.GET("/api/topics/:id", topicHandler.GetTopic)
 	e.PUT("/api/topics/:id", topicHandler.UpdateTopic)
-	e.DELETE("/api/topics/:id", handlers.DeleteTopic)
+	e.DELETE("/api/topics/:id", topicHandler.DeleteTopic)
 
 	// News
 	e.POST("/api/news", newsHandler.CreateNews)

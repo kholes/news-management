@@ -8,12 +8,14 @@ definitions:
         type: string
       id:
         type: integer
+      status:
+        type: string
       title:
         type: string
-      topic:
-        $ref: '#/definitions/models.Topic'
-      topic_id:
-        type: integer
+      topics:
+        items:
+          $ref: '#/definitions/models.Topic'
+        type: array
       updated_at:
         type: string
     type: object
@@ -26,7 +28,6 @@ definitions:
       name:
         type: string
       news:
-        description: Relations
         items:
           $ref: '#/definitions/models.News'
         type: array
@@ -44,7 +45,16 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get list of news
+      description: Get list of news articles with optional filters by status and topic
+      parameters:
+      - description: Filter by status (draft, published, deleted)
+        in: query
+        name: status
+        type: string
+      - description: Filter by topic ID
+        in: query
+        name: topic_id
+        type: integer
       produces:
       - application/json
       responses:
@@ -54,7 +64,13 @@ paths:
             items:
               $ref: '#/definitions/models.News'
             type: array
-      summary: List all news
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all news
       tags:
       - News
     post:

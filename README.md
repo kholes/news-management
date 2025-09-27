@@ -3,7 +3,7 @@
 RESTful API untuk manajemen **News** dan **Topic**, dibangun dengan **Golang (Echo + Gorm)** dan **PostgreSQL**.  
 Mendukung dokumentasi API otomatis menggunakan **Swagger** dan siap dijalankan menggunakan **Docker Compose**.
 
-## A. Fitur
+## Fitur
 - CRUD **Topic** (kategori berita).
 - CRUD **News** dengan relasi ke Topic.
 - API Documentation dengan Swagger.
@@ -12,14 +12,14 @@ Mendukung dokumentasi API otomatis menggunakan **Swagger** dan siap dijalankan m
 - Makefile untuk mempermudah perintah sehari-hari.
 
 
-## B. Prasyarat
+## Prasyarat
 
 Pastikan sudah terinstall:
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 - [Make](https://www.gnu.org/software/make/) *(opsional, tapi disarankan)*
 
 
-## C. Memulai Project
+## Memulai Project
 
 ### 1. Clone Repository
 ```bash
@@ -38,7 +38,7 @@ DB_NAME=news_db
 APP_PORT=8080
 ```
 
-## D. Menjalankan Project
+## Menjalankan Project
 Untuk menjalankan project bisa menggunakan beberapa cara:
 ### 1. Menggunakan Docker Compose
 Build dan jalankan semua service:
@@ -49,7 +49,7 @@ Hentikan service:
 ```bash
 docker-compose down
 ```
-### 2. Dengan Makefile
+### Dengan Makefile
 Jalankan build dengan Docker Compose:
 ```bash
 make build
@@ -66,19 +66,19 @@ Jalankan test:
 ```bash
 make test
 ```
-## E. Dokumentasi API
+## Dokumentasi API
 Swagger docs tersedia di endpoint:
 ```bash
 http://localhost:8080/docs/index.html
 ```
 
-## F. Testing
+## Testing
 Testing API bisa menggunakan swagger (http://localhost:8080/docs/index.html) dan make command:
 ```bash
 make test
 ``` 
 
-## G. Struktur Project
+## Struktur Project
 ```bash
 .
 ├── internal/
@@ -97,10 +97,14 @@ make test
 ├── .gitignore
 ├── go.mod
 ├── go.sum
+├── sequence-news.md
+├── sequence-topic.md
+├── system-design.md
 └── README.md
+
 ```
 
-## H. Makefile
+## Makefile
 ```bash
 # Generate swagger docs
 swag:
@@ -127,3 +131,18 @@ build:
 test:
 	docker-compose exec app go test ./... -v
 ```
+
+## System Design
+Lihat dokumentasi di [system-design.md](system-design.md)
+
+## Sequence Diagram News
+Lihat [sequence-news.md](sequence-news.md)
+
+## Sequence Diagram Topic
+Lihat [sequence-topic.md](sequence-topic.md)
+
+## ERD - News Management
+
+ERD project ini bisa dilihat di file: [news-management.erb.dbml](docs/news-management.erb.dbml)
+
+Gunakan [dbdiagram.io](https://dbdiagram.io/d/68d76db6d2b621e422264b26) untuk render file DBML menjadi diagram visual.

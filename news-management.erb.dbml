@@ -1,0 +1,24 @@
+Table news {
+  id        int [pk, increment] // Primary key
+  title     varchar(255) [not null]
+  content   text
+  status    varchar(20) [not null, note: "draft, published, deleted"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table topics {
+  id        int [pk, increment]
+  name      varchar(100) [unique, not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table news_topics {
+  news_id  int [ref: > news.id]
+  topic_id int [ref: > topics.id]
+  // Composite primary key
+  indexes {
+    (news_id, topic_id) [pk]
+  }
+}

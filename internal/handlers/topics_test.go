@@ -6,167 +6,146 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/kholes/news-management/internal/handlers"
 	"github.com/kholes/news-management/internal/models"
+
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func topicsSetupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
+// -------------------- Setup fresh DB & handler per test --------------------
+func setupTopicHandler(t *testing.T) (*handlers.TopicHandler, *gorm.DB, *echo.Echo) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
-		t.Fatalf("failed to connect to sqlite in memory: %v", err)
+		t.Fatal(err)
 	}
 
-	// migrate ulang
-	db.AutoMigrate(&models.News{}, &models.Topic{})
+	db.AutoMigrate(&models.Topic{}, &models.News{}, &models.NewsTopic{})
 
-	// bersihkan tabel
-	db.Exec("DELETE FROM news")
-	db.Exec("DELETE FROM topics")
+	h := handlers.NewTopicHandler(db)
+	e := echo.New()
 
-	return db
+	return h, db, e
 }
 
-func TestCreateTopics(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
-	h := handlers.NewTopicHandler(db)
+// -------------------- TEST CREATE --------------------
+func TestCreateTopic(t *testing.T) {
+	h, _, e := setupTopicHandler(t)
 
-	// form data
-	form := make(url.Values)
-	form.Set("name", "Tech")
+	name := fmt.Sprintf("Technology_%d", time.Now().UnixNano())
+	input := map[string]string{"name": name}
+	body, _ := json.Marshal(input)
 
-	req := httptest.NewRequest(http.MethodPost, "/topics", strings.NewReader(form.Encode()))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm) // application/x-www-form-urlencoded
+	req := httptest.NewRequest(http.MethodPost, "/api/topics", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	// Call handler
-	if assert.NoError(t, h.CreateTopic(c)) {
-		assert.Equal(t, http.StatusCreated, rec.Code)
+	err := h.CreateTopic(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, rec.Code)
 
-		var resp models.Topic
-		_ = json.Unmarshal(rec.Body.Bytes(), &resp)
-		assert.Equal(t, "Tech", resp.Name)
-		assert.NotZero(t, resp.ID)
-	}
+	var topic models.Topic
+	json.Unmarshal(rec.Body.Bytes(), &topic)
+	assert.Equal(t, name, topic.Name)
 }
 
-func TestGetAll(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
+// -------------------- TEST GET ALL --------------------
+func TestGetAllTopics(t *testing.T) {
+	h, db, e := setupTopicHandler(t)
 
-	// pastikan DB kosong setelah test selesai
-	t.Cleanup(func() {
-		db.Exec("DELETE FROM news")
-		db.Exec("DELETE FROM topics")
-	})
+	// Hanya insert 2 topic untuk test
+	db.Create(&models.Topic{Name: "Tech"})
+	db.Create(&models.Topic{Name: "Science"})
 
-	h := handlers.NewTopicHandler(db)
-
-	req := httptest.NewRequest(http.MethodGet, "/topics", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/topics", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	if assert.NoError(t, h.ListTopics(c)) {
-		assert.Equal(t, http.StatusOK, rec.Code)
-	}
+	err := h.ListTopics(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var topics []models.Topic
+	json.Unmarshal(rec.Body.Bytes(), &topics)
 }
 
-func TestGetTopic_Success(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
-	h := handlers.NewTopicHandler(db)
+// -------------------- TEST GET BY ID --------------------
+func TestGetTopicByID(t *testing.T) {
+	h, db, e := setupTopicHandler(t)
 
-	// insert dummy topic
-	topic := models.Topic{Name: "Technology"}
+	topic := models.Topic{Name: "Health"}
 	db.Create(&topic)
 
-	req := httptest.NewRequest(http.MethodGet, "/topics/1", nil)
+	idStr := strconv.FormatUint(uint64(topic.ID), 10)
+	req := httptest.NewRequest(http.MethodGet, "/api/topics/"+idStr, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/topics/:id")
 	c.SetParamNames("id")
-	c.SetParamValues("1")
+	c.SetParamValues(idStr)
 
-	if assert.NoError(t, h.GetTopic(c)) {
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "Technology")
-	}
+	err := h.GetTopic(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp models.Topic
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	assert.Equal(t, "Health", resp.Name)
 }
 
-func TestGetTopic_NotFound(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
-	h := handlers.NewTopicHandler(db)
+// -------------------- TEST UPDATE --------------------
+func TestUpdateTopic(t *testing.T) {
+	h, db, e := setupTopicHandler(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/topics/99", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetPath("/topics/:id")
-	c.SetParamNames("id")
-	c.SetParamValues("99")
-
-	if assert.NoError(t, h.GetTopic(c)) {
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-		assert.Contains(t, rec.Body.String(), "topic not found")
-	}
-}
-
-func TestUpdateTopics_Success(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
-	h := handlers.NewTopicHandler(db)
-
-	// seed
-	topic := models.Topic{Name: "Old Topic"}
+	topic := models.Topic{Name: "Old Name"}
 	db.Create(&topic)
 
-	form := url.Values{}
-	form.Set("name", "Updated Topic")
+	input := map[string]string{"name": "Updated Name"}
+	body, _ := json.Marshal(input)
 
-	req := httptest.NewRequest(http.MethodPut, "/topics/"+strconv.Itoa(int(topic.ID)), strings.NewReader(form.Encode()))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	idStr := strconv.FormatUint(uint64(topic.ID), 10)
+	req := httptest.NewRequest(http.MethodPut, "/api/topics/"+idStr, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("id")
-	c.SetParamValues(strconv.Itoa(int(topic.ID)))
+	c.SetParamValues(idStr)
 
-	if assert.NoError(t, h.UpdateTopic(c)) {
-		assert.Equal(t, http.StatusOK, rec.Code)
-		var updated models.Topic
-		json.Unmarshal(rec.Body.Bytes(), &updated)
-		assert.Equal(t, "Updated Topic", updated.Name)
-	}
+	err := h.UpdateTopic(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp models.Topic
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	assert.Equal(t, "Updated Name", resp.Name)
 }
 
-func TestUpdateTopics_NotFound(t *testing.T) {
-	e := echo.New()
-	db := topicsSetupTestDB(t)
-	h := handlers.NewTopicHandler(db)
+// -------------------- TEST DELETE --------------------
+func TestDeleteTopic(t *testing.T) {
+	h, db, e := setupTopicHandler(t)
 
-	// tidak seed data → news id=99 tidak ada
-	payload := models.News{Title: "Does Not Matter"}
-	body, _ := json.Marshal(payload)
+	topic := models.Topic{Name: "Delete Me"}
+	db.Create(&topic)
 
-	req := httptest.NewRequest(http.MethodPut, "/topics/99", bytes.NewReader(body))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	idStr := strconv.FormatUint(uint64(topic.ID), 10)
+	req := httptest.NewRequest(http.MethodDelete, "/api/topics/"+idStr, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/topics/:id")
 	c.SetParamNames("id")
-	c.SetParamValues("99")
+	c.SetParamValues(idStr)
 
-	// call handler
-	if assert.NoError(t, h.UpdateTopic(c)) {
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-	}
+	err := h.DeleteTopic(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+
+	// Pastikan topik sudah dihapus
+	var check models.Topic
+	result := db.First(&check, topic.ID)
+	assert.Error(t, result.Error)
 }

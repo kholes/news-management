@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/news": {
             "get": {
-                "description": "Get list of news",
+                "description": "Get list of news articles with optional filters by status and topic",
                 "consumes": [
                     "application/json"
                 ],
@@ -27,7 +27,21 @@ const docTemplate = `{
                 "tags": [
                     "News"
                 ],
-                "summary": "List all news",
+                "summary": "Get all news",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (draft, published, deleted)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by topic ID",
+                        "name": "topic_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -35,6 +49,15 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/models.News"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -486,14 +509,17 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
-                "topic": {
-                    "$ref": "#/definitions/models.Topic"
-                },
-                "topic_id": {
-                    "type": "integer"
+                "topics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Topic"
+                    }
                 },
                 "updated_at": {
                     "type": "string"
@@ -513,7 +539,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "news": {
-                    "description": "Relations",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.News"
