@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kholes/news-management/internal/models"
+	"github.com/kholes/news-management/models"
 
 	"gorm.io/gorm"
 )

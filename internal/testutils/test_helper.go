@@ -8,7 +8,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/kholes/news-management/internal/models"
+	"github.com/kholes/news-management/models"
 )
 
 // SetupTestDB buat DB in-memory

@@ -6,7 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
-	"github.com/kholes/news-management/internal/models"
+	"github.com/kholes/news-management/models"
 )
 
 type NewsHandler struct {

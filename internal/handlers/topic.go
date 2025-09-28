@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/kholes/news-management/internal/models"
+	"github.com/kholes/news-management/models"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )

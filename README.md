@@ -81,13 +81,14 @@ make test
 ## Struktur Project
 ```bash
 .
-├── internal/
-│   ├── config/
-│   ├── models/
-│   ├── handlers/
-│   ├── routes/
-│   └── database/
+├── config/
+├── database/
+├── models/
+├── seeders/
 ├── docs/              # swagger docs
+├── internal/
+│   ├── handlers/
+│   └── routes/
 ├── main.go
 ├── .env
 ├── Makefile

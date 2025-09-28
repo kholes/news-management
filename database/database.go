@@ -6,7 +6,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/kholes/news-management/internal/config"
+	"github.com/kholes/news-management/config"
 )
 
 var DB *gorm.DB

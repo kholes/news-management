@@ -9,12 +9,12 @@ import (
 
 	_ "github.com/kholes/news-management/docs" // generated docs
 
-	"github.com/kholes/news-management/internal/config"
-	"github.com/kholes/news-management/internal/database"
+	"github.com/kholes/news-management/config"
+	"github.com/kholes/news-management/database"
 	"github.com/kholes/news-management/internal/handlers"
-	"github.com/kholes/news-management/internal/models"
 	"github.com/kholes/news-management/internal/routes"
-	"github.com/kholes/news-management/internal/seed"
+	"github.com/kholes/news-management/models"
+	seed "github.com/kholes/news-management/seeders"
 )
 
 // @title News and Topics Management API
